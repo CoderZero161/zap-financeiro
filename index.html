@@ -3,99 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zap Fin - Gestão Pro</title>
+    <title>Zap Fin - Controle Elite</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        body { background: #f4f7f6; font-family: 'Segoe UI', sans-serif; padding-top: 70px; }
-        .header-zap { background: #075E54; color: white; position: fixed; top: 0; width: 100%; z-index: 1050; padding: 12px 20px; border-bottom: 2px solid #128C7E; }
+        :root { --zap-dark: #075E54; --zap-light: #128C7E; --zap-green: #25D366; }
+        body { background: #f0f2f5; font-family: 'Segoe UI', Roboto, sans-serif; padding-top: 65px; }
         
-        .lista-container { background: white; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+        .header-zap { background: var(--zap-dark); color: white; position: fixed; top: 0; width: 100%; z-index: 1050; padding: 12px 15px; border-bottom: 3px solid var(--zap-light); }
+        
+        /* Lista Estilo Tabela Mobile */
         .item-cliente { 
-            display: flex; align-items: center; justify-content: space-between; 
-            padding: 12px 15px; border-bottom: 1px solid #f0f0f0; 
+            background: white; border-bottom: 1px solid #eef0f2; 
+            padding: 10px 15px; display: flex; align-items: center; justify-content: space-between;
         }
-        .item-cliente:last-child { border-bottom: none; }
         
-        .info-box { flex: 1; min-width: 0; }
-        .nome-dono { font-weight: 700; color: #2c3e50; font-size: 14px; margin-right: 5px; }
-        .valor-txt { color: #198754; font-weight: 800; font-size: 14px; }
-        .detalhes-sub { 
-            font-size: 11px; color: #7f8c8d; display: block;
+        .info-container { flex: 1; min-width: 0; cursor: pointer; }
+        .linha-topo { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+        .nome-dono { font-weight: 700; color: #1c1e21; font-size: 14px; }
+        .valor-txt { font-weight: 800; color: #2e7d32; font-size: 14px; }
+        
+        /* Truncamento do Nome do Grupo */
+        .detalhes-linha { 
+            font-size: 11px; color: #65676b; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-            max-width: 95%;
+            display: block; max-width: 90%;
         }
 
+        /* Botões de Status Fixos e Rápidos */
         .btn-status { 
-            width: 85px; font-size: 10px; font-weight: 800; border-radius: 5px; 
-            padding: 5px 0; border: none; transition: 0.2s;
+            width: 85px; font-size: 10px; font-weight: 800; border-radius: 6px; 
+            padding: 6px 0; border: none; transition: all 0.1s ease-in-out;
+            text-transform: uppercase;
         }
-        .bg-pago { background: #e8f5e9; color: #2e7d32; }
-        .bg-pendente { background: #fff3e0; color: #ef6c00; }
+        .st-pago { background: #dcf8c6; color: #075e54; border: 1px solid #c7e8b0; }
+        .st-pendente { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
 
-        .btn-edit { color: #3498db; cursor: pointer; font-size: 18px; margin-right: 10px; }
-        .resumo-topo { background: white; padding: 15px; margin-bottom: 10px; border-bottom: 1px solid #ddd; }
+        .btn-pencil { color: var(--zap-light); font-size: 16px; margin-right: 12px; }
+        .resumo-fixo { background: white; padding: 10px; margin-bottom: 8px; border-bottom: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
 <div class="header-zap d-flex justify-content-between align-items-center shadow">
-    <span class="fw-bold">🛡️ ZAP FIN PRO</span>
-    <button class="btn btn-light btn-sm fw-bold" onclick="abrirModalAdd()">+ NOVO</button>
+    <span class="fw-bold"><i class="bi bi-shield-check"></i> ZAP FIN PRO</span>
+    <button class="btn btn-light btn-sm fw-bold shadow-sm" onclick="abrirModalAdd()">+ NOVO</button>
 </div>
 
-<div class="resumo-topo d-flex justify-content-around text-center shadow-sm">
+<div class="resumo-fixo d-flex justify-content-around text-center shadow-sm">
     <div><small class="text-muted d-block" style="font-size: 10px;">RECEBIDO</small><b id="resP" class="text-success">R$ 0</b></div>
-    <div><small class="text-muted d-block" style="font-size: 10px;">PENDENTE</small><b id="resA" class="text-danger">R$ 0</b></div>
+    <div><small class="text-muted d-block" style="font-size: 10px;">A RECEBER</small><b id="resA" class="text-danger">R$ 0</b></div>
 </div>
 
-<div class="container-fluid">
-    <div id="listaItems" class="lista-container shadow-sm">
-        <div class="text-center p-5 text-muted">Sincronizando dados...</div>
-    </div>
+<div id="listaPrincipal">
+    <div class="text-center p-5 text-muted"><div class="spinner-border spinner-border-sm"></div> Sincronizando...</div>
 </div>
 
-<div class="modal fade" id="modalEdicao" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalEdicao" data-bs-backdrop="static" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="tituloModal">Editar Cliente</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header text-white" style="background: var(--zap-dark)">
+        <h6 class="modal-title" id="tituloModal">Editar Registro</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="editId">
-        <div class="mb-3">
-            <label class="form-label small fw-bold">Nome do Dono</label>
-            <input type="text" id="editDono" class="form-control">
-        </div>
-        <div class="mb-3">
-            <label class="form-label small fw-bold">Nome do Grupo</label>
-            <input type="text" id="editGrupo" class="form-control">
-        </div>
-        <div class="row">
-            <div class="col-6 mb-3">
-                <label class="form-label small fw-bold">Valor (R$)</label>
-                <input type="number" id="editValor" class="form-control">
+        <div class="row g-2">
+            <div class="col-12"><label class="small fw-bold">Dono</label><input type="text" id="editDono" class="form-control"></div>
+            <div class="col-12"><label class="small fw-bold">Grupo</label><input type="text" id="editGrupo" class="form-control"></div>
+            <div class="col-6"><label class="small fw-bold">Valor R$</label><input type="number" id="editValor" class="form-control"></div>
+            <div class="col-6"><label class="small fw-bold">Vencimento</label><input type="text" id="editVence" class="form-control"></div>
+            <div class="col-12">
+                <label class="small fw-bold">Plano</label>
+                <select id="editPlano" class="form-select">
+                    <option value="semanal">Semanal</option>
+                    <option value="quinzena">Quinzena</option>
+                    <option value="Mensal">Mensal</option>
+                </select>
             </div>
-            <div class="col-6 mb-3">
-                <label class="form-label small fw-bold">Vencimento</label>
-                <input type="text" id="editVence" class="form-control" placeholder="Ex: Quinta">
-            </div>
-        </div>
-        <div class="mb-3">
-            <label class="form-label small fw-bold">Plano</label>
-            <select id="editPlano" class="form-select">
-                <option value="semanal">Semanal</option>
-                <option value="quinzena">Quinzena</option>
-                <option value="Mensal">Mensal</option>
-            </select>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-danger" onclick="confirmarExclusao()">Excluir</button>
-        <button type="button" class="btn btn-success w-50" onclick="salvarAlteracoes()">SALVAR</button>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-link text-danger text-decoration-none me-auto" onclick="confirmarExclusao()">Excluir</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Sair</button>
+        <button type="button" class="btn btn-success btn-sm px-4" onclick="salvarAlteracoes()">SALVAR</button>
       </div>
     </div>
   </div>
@@ -108,9 +101,9 @@
     const db = firebase.database();
     const modalUI = new bootstrap.Modal(document.getElementById('modalEdicao'));
 
-    // CARREGAR DADOS
+    // LER DADOS (TEMPO REAL)
     db.ref('clientes').on('value', (snapshot) => {
-        const container = document.getElementById('listaItems');
+        const container = document.getElementById('listaPrincipal');
         let html = "";
         let somaP = 0, somaA = 0;
 
@@ -118,32 +111,48 @@
             const c = item.val();
             const id = item.key;
             const v = parseFloat(c.valor || 0);
-            const pago = c.status === "Pago";
+            const isPago = c.status === "Pago";
 
-            if(pago) somaP += v; else somaA += v;
+            if(isPago) somaP += v; else somaA += v;
 
             html += `
                 <div class="item-cliente">
-                    <i class="bi bi-pencil-square btn-edit" onclick="abrirEdicao('${id}')"></i>
-                    <div class="info-box">
-                        <span class="nome-dono">${c.nome_dono}</span>
-                        <span class="valor-txt">R$ ${v}</span>
-                        <span class="detalhes-sub">${c.nome_grupo} | ${c.vencimento} | ${c.plano}</span>
+                    <i class="bi bi-pencil-square btn-pencil" onclick="abrirEdicao('${id}')"></i>
+                    <div class="info-container" onclick="abrirEdicao('${id}')">
+                        <div class="linha-topo">
+                            <span class="nome-dono">${c.nome_dono}</span>
+                            <span class="valor-txt">R$ ${v}</span>
+                        </div>
+                        <span class="detalhes-linha">${c.nome_grupo} | ${c.vencimento} | ${c.plano}</span>
                     </div>
-                    <button class="btn-status ${pago ? 'bg-pago' : 'bg-pendente'}" onclick="toggleStatus('${id}', '${c.status}')">
-                        ${pago ? 'PAGO' : 'PENDENTE'}
+                    <button id="btn-${id}" class="btn-status ${isPago ? 'st-pago' : 'st-pendente'}" 
+                            onclick="toggleStatus('${id}', '${c.status}')">
+                        ${isPago ? 'PAGO' : 'PENDENTE'}
                     </button>
                 </div>`;
         });
 
-        container.innerHTML = html || '<div class="p-4 text-center">Nenhum cliente encontrado.</div>';
-        document.getElementById('resP').innerText = "R$ " + somaP;
-        document.getElementById('resA').innerText = "R$ " + somaA;
+        container.innerHTML = html || '<div class="p-5 text-center text-muted">Nenhum registro.</div>';
+        document.getElementById('resP').innerText = "R$ " + somaP.toLocaleString('pt-br');
+        document.getElementById('resA').innerText = "R$ " + somaA.toLocaleString('pt-br');
     });
 
-    function toggleStatus(id, atual) {
-        const novo = atual === "Pago" ? "Pendente" : "Pago";
-        db.ref('clientes/' + id).update({ status: novo });
+    // MUDAR STATUS (CORRIGIDO PARA NÃO VOLTAR)
+    function toggleStatus(id, statusAtual) {
+        const novoStatus = statusAtual === "Pago" ? "Pendente" : "Pago";
+        const btn = document.getElementById('btn-' + id);
+        
+        // Feedback visual imediato antes da resposta do servidor
+        if(novoStatus === "Pago") {
+            btn.className = "btn-status st-pago";
+            btn.innerText = "PAGO";
+        } else {
+            btn.className = "btn-status st-pendente";
+            btn.innerText = "PENDENTE";
+        }
+
+        // Atualiza o Firebase
+        db.ref('clientes/' + id).update({ status: novoStatus });
     }
 
     function abrirEdicao(id) {
@@ -166,7 +175,7 @@
         document.getElementById('editGrupo').value = "";
         document.getElementById('editValor').value = "";
         document.getElementById('editVence').value = "";
-        document.getElementById('tituloModal').innerText = "Novo Cliente";
+        document.getElementById('tituloModal').innerText = "Novo Cadastro";
         modalUI.show();
     }
 
@@ -191,7 +200,7 @@
 
     function confirmarExclusao() {
         const id = document.getElementById('editId').value;
-        if(id && confirm("Deseja realmente excluir?")) {
+        if(id && confirm("Tem certeza que deseja apagar?")) {
             db.ref('clientes/' + id).remove();
             modalUI.hide();
         }
