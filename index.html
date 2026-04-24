@@ -3,227 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financeiro PRO</title>
+    <title>Zap Fin - Painel Administrativo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
-        .login-screen { height: 100vh; display: flex; align-items: center; justify-content: center; background: #075E54; }
-        .card-login { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); background: white;}
-        #appContent { display: none; }
-        
-        /* Estilos da Lista Compacta */
-        .lista-clientes { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
-        .item-cliente { border-bottom: 1px solid #f0f0f0; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
-        .item-cliente:last-child { border-bottom: none; }
-        
-        /* Badges de Status */
-        .badge-em-dia { background: #0dcaf0; color: #000; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;}
-        .badge-pago { background: #198754; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;}
-        .badge-metade { background: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;}
-        .badge-atrasado { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-bottom: 90px; }
+        .navbar { background: #075E54; color: white; border-bottom: 3px solid #128C7E; }
+        .card-cliente { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 15px; border-left: 6px solid #ccc; }
+        .pago { border-left-color: #25D366; }
+        .pendente { border-left-color: #ff9800; }
+        .badge-status { font-size: 0.75rem; border-radius: 50px; padding: 5px 12px; }
+        .btn-add { position: fixed; bottom: 25px; right: 25px; width: 65px; height: 65px; border-radius: 50%; font-size: 28px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 1000; border: none; background: #25D366; color: white; }
     </style>
 </head>
 <body>
 
-<div id="loginScreen" class="login-screen">
-    <div class="card-login p-4 text-center mx-3" style="width: 100%; max-width: 350px;">
-        <i class="bi bi-shield-lock-fill text-success fs-1 mb-3"></i>
-        <h4 class="mb-3">Acesso Restrito</h4>
-        <input type="password" id="senhaMaster" class="form-control mb-3 text-center" placeholder="Sua Senha">
-        <button onclick="fazerLogin()" class="btn btn-success w-100 fw-bold">Entrar</button>
+<nav class="navbar shadow-sm sticky-top">
+    <div class="container d-flex justify-content-between align-items-center">
+        <span class="fw-bold fs-5"><i class="bi bi-whatsapp"></i> ZAP FIN LIVE</span>
+        <div id="conexao" class="badge bg-light text-dark small">Sincronizando...</div>
     </div>
-</div>
+</nav>
 
-<div id="appContent" class="container py-3">
-    
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="h5 m-0 text-dark"><i class="bi bi-wallet2"></i> Zap Fin</h4>
-        <div class="btn-group">
-            <button onclick="baixarDoExcel()" id="btnDown" class="btn btn-outline-dark btn-sm" title="Baixar dados no celular"><i class="bi bi-cloud-arrow-down"></i> Baixar</button>
-            <button onclick="sincronizarExcel()" id="btnUp" class="btn btn-primary btn-sm" title="Salvar alterações"><i class="bi bi-cloud-arrow-up"></i> Salvar</button>
+<div class="container py-3">
+    <div class="row g-2 mb-4">
+        <div class="col-6">
+            <div class="bg-white p-3 rounded-4 shadow-sm text-center">
+                <small class="text-muted d-block uppercase fw-bold" style="font-size: 10px;">RECEBIDO</small>
+                <span class="text-success fw-bold fs-5" id="totalPago">R$ 0</span>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="bg-white p-3 rounded-4 shadow-sm text-center">
+                <small class="text-muted d-block uppercase fw-bold" style="font-size: 10px;">PENDENTE</small>
+                <span class="text-warning fw-bold fs-5" id="totalPendente">R$ 0</span>
+            </div>
         </div>
     </div>
 
-    <div class="mb-3 d-flex gap-2">
-        <input type="file" id="fileInput" class="form-control form-control-sm" accept=".txt">
-        <button onclick="importarTXT()" class="btn btn-dark btn-sm px-3">Importar</button>
+    <div id="listaClientes">
+        <div class="text-center py-5"><div class="spinner-border text-success"></div></div>
     </div>
-
-    <div class="lista-clientes" id="listaClientes"></div>
-
 </div>
 
+<button class="btn-add" onclick="novoCliente()"><i class="bi bi-plus-lg"></i></button>
+
 <script>
-// ==========================================
-const SENHA_ACESSO = "1577c"; 
-const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbxorScnS2EECvF9SlLsB3q0OCUYh669L3lhHHxtcyE/dev"; 
-// ==========================================
-
-let db = JSON.parse(localStorage.getItem('financas_zap_v4')) || [];
-
-function fazerLogin() {
-    if(document.getElementById('senhaMaster').value === SENHA_ACESSO) {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContent').style.display = 'block';
-        renderizar();
-    } else {
-        alert("Senha Incorreta!");
-    }
-}
-
-function importarTXT() {
-    const file = document.getElementById('fileInput').files[0];
-    if (!file) return alert("Selecione um arquivo!");
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const linhas = e.target.result.split('\n');
-        linhas.forEach(linha => {
-            if (!linha.includes('=') && !linha.includes('/')) return;
-            let p = linha.includes('=') ? linha.split('=') : linha.split('/');
-            
-            const hoje = new Date();
-            const planoStr = p[2]?.trim().toLowerCase() || "semanal";
-            let dias = planoStr.includes("quinzena") ? 15 : planoStr.includes("mensal") ? 30 : 7;
-
-            const venc = new Date();
-            venc.setDate(hoje.getDate() + dias);
-
-            db.push({
-                id: Date.now() + Math.random(),
-                dono: p[0]?.trim(),
-                grupo: p[1]?.trim(),
-                plano: planoStr,
-                valor: p[3]?.trim() || "0",
-                vencimento: venc.getTime(),
-                status: "Pendente",
-                ultimoPagamentoData: ""
-            });
-        });
-        salvar();
+    // Configuração com sua chave do Firebase
+    const firebaseConfig = { 
+        databaseURL: "https://zapfin-816b8-default-rtdb.firebaseio.com/" 
     };
-    reader.readAsText(file);
-}
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-function setStatus(id, st) {
-    const idx = db.findIndex(c => c.id === id);
-    const agora = new Date();
-    
-    db[idx].status = st;
-    db[idx].ultimoPagamentoData = agora.toLocaleDateString('pt-BR');
+    // 1. ESCUTAR DADOS EM TEMPO REAL
+    db.ref('clientes').on('value', (snapshot) => {
+        document.getElementById('conexao').innerText = "Online";
+        document.getElementById('conexao').classList.replace('bg-light', 'bg-success');
+        document.getElementById('conexao').classList.add('text-white');
 
-    if(st === "Pago") {
-        let dias = 7;
-        const plano = db[idx].plano;
-        if(plano.includes("quinzena")) dias = 15;
-        if(plano.includes("mensal")) dias = 30;
+        const container = document.getElementById('listaClientes');
+        let html = "";
+        let pagoTotal = 0;
+        let pendenteTotal = 0;
 
-        let novaData = new Date();
-        novaData.setDate(agora.getDate() + dias);
-        db[idx].vencimento = novaData.getTime();
-    }
-    salvar();
-}
-
-function salvar() {
-    localStorage.setItem('financas_zap_v4', JSON.stringify(db));
-    renderizar();
-}
-
-function renderizar() {
-    const container = document.getElementById('listaClientes');
-    container.innerHTML = "";
-    const agora = new Date().getTime();
-
-    if(db.length === 0) {
-        container.innerHTML = "<div class='p-3 text-center text-muted small'>Nenhum dado. Importe o TXT ou clique em Baixar.</div>";
-        return;
-    }
-
-    db.forEach(c => {
-        let statusFinal = "Em Dia";
-        let classeBadge = "badge-em-dia";
-
-        // Lógica Corrigida: Só atrasa se passar da data
-        if (agora > c.vencimento && c.status !== "Pago") {
-            statusFinal = "Atrasado";
-            classeBadge = "badge-atrasado";
-        } else if (c.status === "Pago") {
-            statusFinal = "Pago";
-            classeBadge = "badge-pago";
-        } else if (c.status === "Metade") {
-            statusFinal = "Metade";
-            classeBadge = "badge-metade";
+        if (!snapshot.exists()) {
+            container.innerHTML = '<div class="text-center mt-5 text-muted"><h5>Nenhum grupo encontrado.</h5><p>Clique no + para adicionar.</p></div>';
+            return;
         }
 
-        const dataVenc = new Date(c.vencimento).toLocaleDateString('pt-BR');
+        snapshot.forEach((item) => {
+            const c = item.val();
+            const id = item.key;
+            const valor = parseFloat(c.valor || 0);
+            const isPago = c.status === "Pago";
 
-        // Layout de Lista Compacta
-        container.innerHTML += `
-            <div class="item-cliente">
-                <div style="line-height: 1.2;">
-                    <strong class="text-dark d-block" style="font-size: 0.95rem;">${c.dono}</strong>
-                    <span class="text-muted" style="font-size: 0.75rem;">${c.grupo} | ${c.plano}</span><br>
-                    <span class="text-success fw-bold" style="font-size: 0.85rem;">R$ ${c.valor}</span> 
-                    <span class="text-muted ms-1" style="font-size: 0.7rem;">Vence: ${dataVenc}</span>
-                </div>
-                
-                <div class="text-end">
-                    <span class="${classeBadge} d-inline-block mb-1">${statusFinal}</span><br>
-                    <div class="btn-group mt-1">
-                        <button onclick="setStatus(${c.id}, 'Metade')" class="btn btn-outline-warning btn-sm py-0 px-2" style="font-size: 0.75rem;">50%</button>
-                        <button onclick="setStatus(${c.id}, 'Pago')" class="btn btn-outline-success btn-sm py-0 px-2" style="font-size: 0.75rem;">Pago</button>
+            if(isPago) pagoTotal += valor; else pendenteTotal += valor;
+
+            html += `
+                <div class="card card-cliente ${isPago ? 'pago' : 'pendente'}">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div onclick="editarValor('${id}', '${c.nome_dono}', '${c.valor}')" style="cursor:pointer">
+                            <h6 class="mb-0 fw-bold">${c.nome_dono}</h6>
+                            <small class="text-muted">${c.nome_grupo || 'Geral'} | ${c.dia_vencimento || 'S/D'}</small>
+                            <div class="mt-1">
+                                <span class="fw-bold ${isPago ? 'text-success' : 'text-dark'}">R$ ${valor.toFixed(2)}</span>
+                                <span class="badge ${isPago ? 'bg-success' : 'bg-warning text-dark'} badge-status ms-2">
+                                    ${c.status || 'Pendente'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-light btn-sm shadow-sm" onclick="alternarStatus('${id}', '${c.status}')">
+                                <i class="bi ${isPago ? 'bi-x-circle text-danger' : 'bi-check-circle-fill text-success'} fs-5"></i>
+                            </button>
+                            <button class="btn btn-light btn-sm shadow-sm" onclick="excluir('${id}')">
+                                <i class="bi bi-trash text-muted"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>`;
-    });
-}
+                </div>`;
+        });
 
-// SALVAR NO EXCEL
-function sincronizarExcel() {
-    const btn = document.getElementById('btnUp');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-    
-    // Convertendo para envio simples para não ter erro de CORS
-    fetch(URL_GOOGLE_SHEETS, {
-        method: 'POST',
-        body: JSON.stringify(db)
-    }).then(() => {
-        btn.innerHTML = '<i class="bi bi-check2"></i> OK';
-        btn.classList.replace('btn-primary', 'btn-success');
-        setTimeout(() => {
-            btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> Salvar';
-            btn.classList.replace('btn-success', 'btn-primary');
-        }, 2000);
-    }).catch(() => {
-        alert("Erro. Verifique a internet ou recarregue a página.");
-        btn.innerHTML = 'Erro';
+        container.innerHTML = html;
+        document.getElementById('totalPago').innerText = "R$ " + pagoTotal.toFixed(2);
+        document.getElementById('totalPendente').innerText = "R$ " + pendenteTotal.toFixed(2);
     });
-}
 
-// BAIXAR DO EXCEL (Para o celular)
-function baixarDoExcel() {
-    const btn = document.getElementById('btnDown');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-    
-    fetch(URL_GOOGLE_SHEETS)
-    .then(res => res.json())
-    .then(data => {
-        if(data && data.length > 0) {
-            db = data;
-            salvar();
-            btn.innerHTML = '<i class="bi bi-check2"></i> Baixado';
-        } else {
-            btn.innerHTML = 'Planilha Vazia';
+    // 2. FUNÇÕES DE CONTROLE
+    function novoCliente() {
+        const dono = prompt("Nome do Dono:");
+        const gp = prompt("Nome do Grupo:");
+        const val = prompt("Valor (R$):");
+        if (dono && val) {
+            db.ref('clientes').push({
+                nome_dono: dono, nome_grupo: gp, valor: val.replace(',','.'), 
+                status: "Pendente", dia_vencimento: "Hoje"
+            });
         }
-        setTimeout(() => btn.innerHTML = '<i class="bi bi-cloud-arrow-down"></i> Baixar', 2000);
-    }).catch(err => {
-        alert("Ainda não há dados no Excel ou erro na URL.");
-        btn.innerHTML = '<i class="bi bi-cloud-arrow-down"></i> Baixar';
-    });
-}
+    }
+
+    function alternarStatus(id, atual) {
+        const novo = atual === "Pago" ? "Pendente" : "Pago";
+        db.ref('clientes/' + id).update({ status: novo });
+    }
+
+    function editarValor(id, nome, valor) {
+        const novo = prompt(`Novo valor para ${nome}:`, valor);
+        if (novo) db.ref('clientes/' + id).update({ valor: novo.replace(',','.') });
+    }
+
+    function excluir(id) {
+        if (confirm("Excluir este registro?")) db.ref('clientes/' + id).remove();
+    }
 </script>
 </body>
 </html>
