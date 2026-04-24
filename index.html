@@ -2,96 +2,91 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zap Fin - Controle Elite</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zap Fin - v3 Estável</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        :root { --zap-dark: #075E54; --zap-light: #128C7E; --zap-green: #25D366; }
-        body { background: #f0f2f5; font-family: 'Segoe UI', Roboto, sans-serif; padding-top: 65px; }
+        :root { --whatsapp-dark: #075E54; --whatsapp-green: #25D366; --bg-gray: #f0f2f5; }
+        body { background: var(--bg-gray); font-family: 'Segoe UI', Tahoma, sans-serif; padding-top: 60px; }
         
-        .header-zap { background: var(--zap-dark); color: white; position: fixed; top: 0; width: 100%; z-index: 1050; padding: 12px 15px; border-bottom: 3px solid var(--zap-light); }
+        .navbar-custom { background: var(--whatsapp-dark); color: white; position: fixed; top: 0; width: 100%; z-index: 1000; padding: 10px 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         
-        /* Lista Estilo Tabela Mobile */
-        .item-cliente { 
-            background: white; border-bottom: 1px solid #eef0f2; 
-            padding: 10px 15px; display: flex; align-items: center; justify-content: space-between;
-        }
-        
-        .info-container { flex: 1; min-width: 0; cursor: pointer; }
-        .linha-topo { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-        .nome-dono { font-weight: 700; color: #1c1e21; font-size: 14px; }
-        .valor-txt { font-weight: 800; color: #2e7d32; font-size: 14px; }
-        
-        /* Truncamento do Nome do Grupo */
-        .detalhes-linha { 
-            font-size: 11px; color: #65676b; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-            display: block; max-width: 90%;
-        }
+        /* Lista em Estilo Mobile Clean */
+        .card-lista { background: white; border-bottom: 1px solid #e9ecef; display: flex; align-items: center; padding: 12px 15px; transition: background 0.2s; }
+        .card-lista:active { background: #ebebeb; }
 
-        /* Botões de Status Fixos e Rápidos */
-        .btn-status { 
-            width: 85px; font-size: 10px; font-weight: 800; border-radius: 6px; 
-            padding: 6px 0; border: none; transition: all 0.1s ease-in-out;
-            text-transform: uppercase;
+        .btn-edit-icon { color: #007bff; font-size: 1.2rem; margin-right: 15px; cursor: pointer; }
+        
+        .content-body { flex-grow: 1; min-width: 0; cursor: pointer; }
+        .linha-cabecalho { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
+        .txt-nome { font-weight: 700; font-size: 0.95rem; color: #1c1e21; margin: 0; }
+        .txt-valor { font-weight: 800; color: #28a745; font-size: 0.9rem; }
+        
+        /* Truncamento para não quebrar o layout */
+        .txt-info { font-size: 0.75rem; color: #65676b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-top: 2px; }
+
+        /* Botão de Status Robusto */
+        .btn-stat { 
+            width: 95px; height: 32px; border-radius: 6px; font-size: 10px; font-weight: 800; 
+            border: none; text-transform: uppercase; transition: transform 0.1s;
         }
+        .btn-stat:active { transform: scale(0.95); }
         .st-pago { background: #dcf8c6; color: #075e54; border: 1px solid #c7e8b0; }
         .st-pendente { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
 
-        .btn-pencil { color: var(--zap-light); font-size: 16px; margin-right: 12px; }
-        .resumo-fixo { background: white; padding: 10px; margin-bottom: 8px; border-bottom: 1px solid #ddd; }
+        .resumo-fixed { background: white; padding: 10px; border-bottom: 1px solid #ddd; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
-<div class="header-zap d-flex justify-content-between align-items-center shadow">
-    <span class="fw-bold"><i class="bi bi-shield-check"></i> ZAP FIN PRO</span>
-    <button class="btn btn-light btn-sm fw-bold shadow-sm" onclick="abrirModalAdd()">+ NOVO</button>
+<div class="navbar-custom d-flex justify-content-between align-items-center">
+    <span class="fw-bold">ZAP FINANCEIRO</span>
+    <button class="btn btn-success btn-sm fw-bold" onclick="abrirModalAdd()">+ NOVO</button>
 </div>
 
-<div class="resumo-fixo d-flex justify-content-around text-center shadow-sm">
-    <div><small class="text-muted d-block" style="font-size: 10px;">RECEBIDO</small><b id="resP" class="text-success">R$ 0</b></div>
-    <div><small class="text-muted d-block" style="font-size: 10px;">A RECEBER</small><b id="resA" class="text-danger">R$ 0</b></div>
+<div class="resumo-fixed d-flex justify-content-around text-center shadow-sm">
+    <div><small class="text-muted d-block" style="font-size: 9px;">TOTAL RECEBIDO</small><b id="totalPago" class="text-success">R$ 0</b></div>
+    <div><small class="text-muted d-block" style="font-size: 9px;">TOTAL PENDENTE</small><b id="totalPend" class="text-danger">R$ 0</b></div>
 </div>
 
-<div id="listaPrincipal">
-    <div class="text-center p-5 text-muted"><div class="spinner-border spinner-border-sm"></div> Sincronizando...</div>
+<div id="renderLista">
+    <div class="text-center p-5 text-muted">Sincronizando com Firebase...</div>
 </div>
 
 <div class="modal fade" id="modalEdicao" data-bs-backdrop="static" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header text-white" style="background: var(--zap-dark)">
-        <h6 class="modal-title" id="tituloModal">Editar Registro</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="editId">
-        <div class="row g-2">
-            <div class="col-12"><label class="small fw-bold">Dono</label><input type="text" id="editDono" class="form-control"></div>
-            <div class="col-12"><label class="small fw-bold">Grupo</label><input type="text" id="editGrupo" class="form-control"></div>
-            <div class="col-6"><label class="small fw-bold">Valor R$</label><input type="number" id="editValor" class="form-control"></div>
-            <div class="col-6"><label class="small fw-bold">Vencimento</label><input type="text" id="editVence" class="form-control"></div>
-            <div class="col-12">
-                <label class="small fw-bold">Plano</label>
-                <select id="editPlano" class="form-select">
-                    <option value="semanal">Semanal</option>
-                    <option value="quinzena">Quinzena</option>
-                    <option value="Mensal">Mensal</option>
-                </select>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header text-white" style="background: var(--whatsapp-dark)">
+                <h6 class="modal-title" id="mTitulo">Editar Registro</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <input type="hidden" id="mId">
+                <div class="row g-2">
+                    <div class="col-12"><label class="small fw-bold">Dono do Grupo</label><input type="text" id="mDono" class="form-control"></div>
+                    <div class="col-12"><label class="small fw-bold">Nome do Grupo</label><input type="text" id="mGrupo" class="form-control"></div>
+                    <div class="col-6"><label class="small fw-bold">Valor (R$)</label><input type="number" id="mValor" class="form-control"></div>
+                    <div class="col-6"><label class="small fw-bold">Vencimento</label><input type="text" id="mVence" class="form-control"></div>
+                    <div class="col-12">
+                        <label class="small fw-bold">Plano de Pagamento</label>
+                        <select id="mPlano" class="form-select">
+                            <option value="semanal">Semanal</option>
+                            <option value="quinzena">Quinzena</option>
+                            <option value="Mensal">Mensal</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-link text-danger me-auto small" onclick="excluirRegistro()">Apagar</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-success btn-sm px-4" onclick="salvar()">SALVAR</button>
             </div>
         </div>
-      </div>
-      <div class="modal-footer border-0">
-        <button type="button" class="btn btn-link text-danger text-decoration-none me-auto" onclick="confirmarExclusao()">Excluir</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Sair</button>
-        <button type="button" class="btn btn-success btn-sm px-4" onclick="salvarAlteracoes()">SALVAR</button>
-      </div>
     </div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -99,94 +94,99 @@
     const firebaseConfig = { databaseURL: "https://zapfin-816b8-default-rtdb.firebaseio.com/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const modalUI = new bootstrap.Modal(document.getElementById('modalEdicao'));
+    const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
 
-    // LER DADOS (TEMPO REAL)
+    // Carregamento estável
     db.ref('clientes').on('value', (snapshot) => {
-        const container = document.getElementById('listaPrincipal');
+        const container = document.getElementById('renderLista');
         let html = "";
-        let somaP = 0, somaA = 0;
+        let sP = 0, sA = 0;
 
         snapshot.forEach((item) => {
             const c = item.val();
             const id = item.key;
             const v = parseFloat(c.valor || 0);
-            const isPago = c.status === "Pago";
+            const pago = c.status === "Pago";
 
-            if(isPago) somaP += v; else somaA += v;
+            pago ? sP += v : sA += v;
 
             html += `
-                <div class="item-cliente">
-                    <i class="bi bi-pencil-square btn-pencil" onclick="abrirEdicao('${id}')"></i>
-                    <div class="info-container" onclick="abrirEdicao('${id}')">
-                        <div class="linha-topo">
-                            <span class="nome-dono">${c.nome_dono}</span>
-                            <span class="valor-txt">R$ ${v}</span>
+                <div class="card-lista">
+                    <i class="bi bi-pencil-square btn-edit-icon" onclick="abrirEdicao('${id}')"></i>
+                    <div class="content-body" onclick="abrirEdicao('${id}')">
+                        <div class="linha-cabecalho">
+                            <span class="txt-nome">${c.nome_dono}</span>
+                            <span class="txt-valor">R$ ${v}</span>
                         </div>
-                        <span class="detalhes-linha">${c.nome_grupo} | ${c.vencimento} | ${c.plano}</span>
+                        <span class="txt-info">${c.nome_grupo} • ${c.vencimento} • ${c.plano}</span>
                     </div>
-                    <button id="btn-${id}" class="btn-status ${isPago ? 'st-pago' : 'st-pendente'}" 
-                            onclick="toggleStatus('${id}', '${c.status}')">
-                        ${isPago ? 'PAGO' : 'PENDENTE'}
+                    <button id="btn-${id}" class="btn-stat ${pago ? 'st-pago' : 'st-pendente'}" 
+                            onclick="mudarStatus('${id}', '${c.status}')">
+                        ${pago ? 'PAGO' : 'PENDENTE'}
                     </button>
                 </div>`;
         });
 
-        container.innerHTML = html || '<div class="p-5 text-center text-muted">Nenhum registro.</div>';
-        document.getElementById('resP').innerText = "R$ " + somaP.toLocaleString('pt-br');
-        document.getElementById('resA').innerText = "R$ " + somaA.toLocaleString('pt-br');
+        container.innerHTML = html || '<div class="p-5 text-center">Nenhum registro.</div>';
+        document.getElementById('totalPago').innerText = "R$ " + sP;
+        document.getElementById('totalPend').innerText = "R$ " + sA;
     });
 
-    // MUDAR STATUS (CORRIGIDO PARA NÃO VOLTAR)
-    function toggleStatus(id, statusAtual) {
-        const novoStatus = statusAtual === "Pago" ? "Pendente" : "Pago";
+    // FUNÇÃO QUE MATA O BUG DO STATUS
+    function mudarStatus(id, statusAtual) {
         const btn = document.getElementById('btn-' + id);
+        const novoStatus = statusAtual === "Pago" ? "Pendente" : "Pago";
         
-        // Feedback visual imediato antes da resposta do servidor
+        // 1. Update Visual Imediato (Anti-lag)
         if(novoStatus === "Pago") {
-            btn.className = "btn-status st-pago";
+            btn.className = "btn-stat st-pago";
             btn.innerText = "PAGO";
         } else {
-            btn.className = "btn-status st-pendente";
+            btn.className = "btn-stat st-pendente";
             btn.innerText = "PENDENTE";
         }
 
-        // Atualiza o Firebase
-        db.ref('clientes/' + id).update({ status: novoStatus });
+        // 2. Trava o botão por 1 segundo para evitar cliques duplos
+        btn.disabled = true;
+
+        // 3. Grava no Firebase e reabilita depois
+        db.ref('clientes/' + id).update({ status: novoStatus }).then(() => {
+            setTimeout(() => { btn.disabled = false; }, 800);
+        });
     }
 
     function abrirEdicao(id) {
-        db.ref('clientes/' + id).once('value').then((s) => {
+        db.ref('clientes/' + id).once('value').then(s => {
             const c = s.val();
-            document.getElementById('editId').value = id;
-            document.getElementById('editDono').value = c.nome_dono;
-            document.getElementById('editGrupo').value = c.nome_grupo;
-            document.getElementById('editValor').value = c.valor;
-            document.getElementById('editVence').value = c.vencimento;
-            document.getElementById('editPlano').value = c.plano;
-            document.getElementById('tituloModal').innerText = "Editar Cliente";
-            modalUI.show();
+            document.getElementById('mId').value = id;
+            document.getElementById('mDono').value = c.nome_dono;
+            document.getElementById('mGrupo').value = c.nome_grupo;
+            document.getElementById('mValor').value = c.valor;
+            document.getElementById('mVence').value = c.vencimento;
+            document.getElementById('mPlano').value = c.plano;
+            document.getElementById('mTitulo').innerText = "Editar Cadastro";
+            modal.show();
         });
     }
 
     function abrirModalAdd() {
-        document.getElementById('editId').value = "";
-        document.getElementById('editDono').value = "";
-        document.getElementById('editGrupo').value = "";
-        document.getElementById('editValor').value = "";
-        document.getElementById('editVence').value = "";
-        document.getElementById('tituloModal').innerText = "Novo Cadastro";
-        modalUI.show();
+        document.getElementById('mId').value = "";
+        document.getElementById('mDono').value = "";
+        document.getElementById('mGrupo').value = "";
+        document.getElementById('mValor').value = "";
+        document.getElementById('mVence').value = "";
+        document.getElementById('mTitulo').innerText = "Novo Cadastro";
+        modal.show();
     }
 
-    function salvarAlteracoes() {
-        const id = document.getElementById('editId').value;
+    function salvar() {
+        const id = document.getElementById('mId').value;
         const dados = {
-            nome_dono: document.getElementById('editDono').value,
-            nome_grupo: document.getElementById('editGrupo').value,
-            valor: document.getElementById('editValor').value,
-            vencimento: document.getElementById('editVence').value,
-            plano: document.getElementById('editPlano').value
+            nome_dono: document.getElementById('mDono').value,
+            nome_grupo: document.getElementById('mGrupo').value,
+            valor: document.getElementById('mValor').value,
+            vencimento: document.getElementById('mVence').value,
+            plano: document.getElementById('mPlano').value
         };
 
         if(id) {
@@ -195,14 +195,14 @@
             dados.status = "Pendente";
             db.ref('clientes').push(dados);
         }
-        modalUI.hide();
+        modal.hide();
     }
 
-    function confirmarExclusao() {
-        const id = document.getElementById('editId').value;
-        if(id && confirm("Tem certeza que deseja apagar?")) {
+    function excluirRegistro() {
+        const id = document.getElementById('mId').value;
+        if(id && confirm("Deseja apagar permanentemente?")) {
             db.ref('clientes/' + id).remove();
-            modalUI.hide();
+            modal.hide();
         }
     }
 </script>
