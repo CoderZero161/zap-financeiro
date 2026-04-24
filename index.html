@@ -9,18 +9,26 @@
     <style>
         body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
         .login-screen { height: 100vh; display: flex; align-items: center; justify-content: center; background: #075E54; }
-        .card { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        .badge-pago { background: #198754; color: white; padding: 5px 8px; border-radius: 6px; }
-        .badge-metade { background: #ffc107; color: black; padding: 5px 8px; border-radius: 6px; }
-        .badge-atrasado { background: #dc3545; color: white; padding: 5px 8px; border-radius: 6px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .card-login { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); background: white;}
         #appContent { display: none; }
+        
+        /* Estilos da Lista Compacta */
+        .lista-clientes { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
+        .item-cliente { border-bottom: 1px solid #f0f0f0; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+        .item-cliente:last-child { border-bottom: none; }
+        
+        /* Badges de Status */
+        .badge-em-dia { background: #0dcaf0; color: #000; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;}
+        .badge-pago { background: #198754; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;}
+        .badge-metade { background: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;}
+        .badge-atrasado { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div id="loginScreen" class="login-screen">
-    <div class="card p-4 text-center mx-3" style="width: 100%; max-width: 350px;">
+    <div class="card-login p-4 text-center mx-3" style="width: 100%; max-width: 350px;">
         <i class="bi bi-shield-lock-fill text-success fs-1 mb-3"></i>
         <h4 class="mb-3">Acesso Restrito</h4>
         <input type="password" id="senhaMaster" class="form-control mb-3 text-center" placeholder="Sua Senha">
@@ -28,34 +36,33 @@
     </div>
 </div>
 
-<div id="appContent" class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="h5 m-0 text-dark"><i class="bi bi-wallet2"></i> Controle Zap</h3>
-        <button onclick="sincronizarExcel()" id="btnSync" class="btn btn-primary btn-sm"><i class="bi bi-cloud-arrow-up"></i> Salvar no Excel</button>
-    </div>
-
-    <div class="card p-3 mb-4">
-        <label class="form-label small fw-bold text-muted">Atualizar lista via TXT</label>
-        <div class="d-flex gap-2">
-            <input type="file" id="fileInput" class="form-control form-control-sm" accept=".txt">
-            <button onclick="importarTXT()" class="btn btn-dark btn-sm">Importar</button>
+<div id="appContent" class="container py-3">
+    
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="h5 m-0 text-dark"><i class="bi bi-wallet2"></i> Zap Fin</h4>
+        <div class="btn-group">
+            <button onclick="baixarDoExcel()" id="btnDown" class="btn btn-outline-dark btn-sm" title="Baixar dados no celular"><i class="bi bi-cloud-arrow-down"></i> Baixar</button>
+            <button onclick="sincronizarExcel()" id="btnUp" class="btn btn-primary btn-sm" title="Salvar alterações"><i class="bi bi-cloud-arrow-up"></i> Salvar</button>
         </div>
     </div>
 
-    <div id="listaClientes"></div>
+    <div class="mb-3 d-flex gap-2">
+        <input type="file" id="fileInput" class="form-control form-control-sm" accept=".txt">
+        <button onclick="importarTXT()" class="btn btn-dark btn-sm px-3">Importar</button>
+    </div>
+
+    <div class="lista-clientes" id="listaClientes"></div>
+
 </div>
 
 <script>
 // ==========================================
-// CONFIGURAÇÕES PRINCIPAIS
-// ==========================================
-const SENHA_ACESSO = "1577c"; // Mude para sua senha desejada
-const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbwXGJlyGLXkSW9KLE9ZB8uvZnDSbtAiwL8ymoj-GtnTJ2Li-HlSAlYXYe1COmfXvfg/exec"; // URL gerada no Passo 1
+const SENHA_ACESSO = "1577c"; 
+const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbxorScnS2EECvF9SlLsB3q0OCUYh669L3lhHHxtcyE/dev"; 
 // ==========================================
 
-let db = JSON.parse(localStorage.getItem('financas_zap')) || [];
+let db = JSON.parse(localStorage.getItem('financas_zap_v4')) || [];
 
-// SISTEMA DE LOGIN
 function fazerLogin() {
     if(document.getElementById('senhaMaster').value === SENHA_ACESSO) {
         document.getElementById('loginScreen').style.display = 'none';
@@ -66,7 +73,6 @@ function fazerLogin() {
     }
 }
 
-// IMPORTAR TXT
 function importarTXT() {
     const file = document.getElementById('fileInput').files[0];
     if (!file) return alert("Selecione um arquivo!");
@@ -101,7 +107,6 @@ function importarTXT() {
     reader.readAsText(file);
 }
 
-// ATUALIZAR PAGAMENTO
 function setStatus(id, st) {
     const idx = db.findIndex(c => c.id === id);
     const agora = new Date();
@@ -123,78 +128,102 @@ function setStatus(id, st) {
 }
 
 function salvar() {
-    localStorage.setItem('financas_zap', JSON.stringify(db));
+    localStorage.setItem('financas_zap_v4', JSON.stringify(db));
     renderizar();
 }
 
-// RENDERIZAR NA TELA (EM TEMPO REAL)
 function renderizar() {
     const container = document.getElementById('listaClientes');
     container.innerHTML = "";
     const agora = new Date().getTime();
 
-    db.forEach(c => {
-        let statusFinal = c.status;
-        let classeBadge = "badge-metade";
+    if(db.length === 0) {
+        container.innerHTML = "<div class='p-3 text-center text-muted small'>Nenhum dado. Importe o TXT ou clique em Baixar.</div>";
+        return;
+    }
 
+    db.forEach(c => {
+        let statusFinal = "Em Dia";
+        let classeBadge = "badge-em-dia";
+
+        // Lógica Corrigida: Só atrasa se passar da data
         if (agora > c.vencimento && c.status !== "Pago") {
-            statusFinal = "ATRASADO";
+            statusFinal = "Atrasado";
             classeBadge = "badge-atrasado";
         } else if (c.status === "Pago") {
-            statusFinal = "PAGO";
+            statusFinal = "Pago";
             classeBadge = "badge-pago";
+        } else if (c.status === "Metade") {
+            statusFinal = "Metade";
+            classeBadge = "badge-metade";
         }
 
         const dataVenc = new Date(c.vencimento).toLocaleDateString('pt-BR');
 
+        // Layout de Lista Compacta
         container.innerHTML += `
-            <div class="card p-3 mb-3">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <strong class="text-dark">${c.dono}</strong><br>
-                        <small class="text-muted">${c.grupo} | ${c.plano}</small><br>
-                        <span class="text-success fw-bold">R$ ${c.valor}</span>
-                    </div>
-                    <div class="text-end">
-                        <span class="${classeBadge} d-inline-block mb-2">${statusFinal}</span><br>
-                        <small class="text-muted" style="font-size: 0.75rem;">Vence: ${dataVenc}</small>
-                    </div>
+            <div class="item-cliente">
+                <div style="line-height: 1.2;">
+                    <strong class="text-dark d-block" style="font-size: 0.95rem;">${c.dono}</strong>
+                    <span class="text-muted" style="font-size: 0.75rem;">${c.grupo} | ${c.plano}</span><br>
+                    <span class="text-success fw-bold" style="font-size: 0.85rem;">R$ ${c.valor}</span> 
+                    <span class="text-muted ms-1" style="font-size: 0.7rem;">Vence: ${dataVenc}</span>
                 </div>
-                <hr class="my-2">
-                <div class="d-flex justify-content-end gap-2">
-                    <button onclick="setStatus(${c.id}, 'Metade')" class="btn btn-sm btn-warning fw-bold">50%</button>
-                    <button onclick="setStatus(${c.id}, 'Pago')" class="btn btn-sm btn-success fw-bold">100% Pago</button>
+                
+                <div class="text-end">
+                    <span class="${classeBadge} d-inline-block mb-1">${statusFinal}</span><br>
+                    <div class="btn-group mt-1">
+                        <button onclick="setStatus(${c.id}, 'Metade')" class="btn btn-outline-warning btn-sm py-0 px-2" style="font-size: 0.75rem;">50%</button>
+                        <button onclick="setStatus(${c.id}, 'Pago')" class="btn btn-outline-success btn-sm py-0 px-2" style="font-size: 0.75rem;">Pago</button>
+                    </div>
                 </div>
             </div>`;
     });
 }
 
-// SINCRONIZAR COM GOOGLE SHEETS
+// SALVAR NO EXCEL
 function sincronizarExcel() {
-    const btn = document.getElementById('btnSync');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando...';
-    btn.disabled = true;
-
+    const btn = document.getElementById('btnUp');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    
+    // Convertendo para envio simples para não ter erro de CORS
     fetch(URL_GOOGLE_SHEETS, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(db)
     }).then(() => {
-        btn.innerHTML = '<i class="bi bi-check-circle"></i> Salvo com Sucesso';
+        btn.innerHTML = '<i class="bi bi-check2"></i> OK';
         btn.classList.replace('btn-primary', 'btn-success');
         setTimeout(() => {
-            btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> Salvar no Excel';
+            btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> Salvar';
             btn.classList.replace('btn-success', 'btn-primary');
-            btn.disabled = false;
-        }, 3000);
-    }).catch(err => {
-        alert("Erro ao conectar com a planilha. Verifique a URL.");
-        btn.innerHTML = 'Tentar Novamente';
-        btn.disabled = false;
+        }, 2000);
+    }).catch(() => {
+        alert("Erro. Verifique a internet ou recarregue a página.");
+        btn.innerHTML = 'Erro';
     });
 }
 
+// BAIXAR DO EXCEL (Para o celular)
+function baixarDoExcel() {
+    const btn = document.getElementById('btnDown');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    
+    fetch(URL_GOOGLE_SHEETS)
+    .then(res => res.json())
+    .then(data => {
+        if(data && data.length > 0) {
+            db = data;
+            salvar();
+            btn.innerHTML = '<i class="bi bi-check2"></i> Baixado';
+        } else {
+            btn.innerHTML = 'Planilha Vazia';
+        }
+        setTimeout(() => btn.innerHTML = '<i class="bi bi-cloud-arrow-down"></i> Baixar', 2000);
+    }).catch(err => {
+        alert("Ainda não há dados no Excel ou erro na URL.");
+        btn.innerHTML = '<i class="bi bi-cloud-arrow-down"></i> Baixar';
+    });
+}
 </script>
 </body>
 </html>
