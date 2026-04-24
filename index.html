@@ -3,94 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financeiro - Importador PRO</title>
+    <title>Financeiro PRO</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
         body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
-        .card-header { background: #075e54; color: white; font-weight: bold; }
-        .btn-upload { background: #128c7e; color: white; }
+        .login-screen { height: 100vh; display: flex; align-items: center; justify-content: center; background: #075E54; }
+        .card { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .badge-pago { background: #198754; color: white; padding: 5px 8px; border-radius: 6px; }
+        .badge-metade { background: #ffc107; color: black; padding: 5px 8px; border-radius: 6px; }
+        .badge-atrasado { background: #dc3545; color: white; padding: 5px 8px; border-radius: 6px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        #appContent { display: none; }
     </style>
 </head>
 <body>
 
-<div class="container py-4">
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header"><i class="bi bi-file-earmark-arrow-up me-2"></i>Importar Dados (.txt)</div>
-        <div class="card-body">
-            <p class="small text-muted">Selecione o arquivo controle.txt para popular o sistema automaticamente.</p>
-            <input type="file" id="fileInput" class="form-control mb-3" accept=".txt">
-            <button onclick="processarArquivo()" class="btn btn-upload w-100">Carregar e Sincronizar</button>
-        </div>
-    </div>
-
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Dono</th>
-                        <th>Grupo</th>
-                        <th>Plano</th>
-                        <th>Valor</th>
-                        <th>Vencimento</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaDados"></tbody>
-            </table>
-        </div>
+<div id="loginScreen" class="login-screen">
+    <div class="card p-4 text-center mx-3" style="width: 100%; max-width: 350px;">
+        <i class="bi bi-shield-lock-fill text-success fs-1 mb-3"></i>
+        <h4 class="mb-3">Acesso Restrito</h4>
+        <input type="password" id="senhaMaster" class="form-control mb-3 text-center" placeholder="Sua Senha">
+        <button onclick="fazerLogin()" class="btn btn-success w-100 fw-bold">Entrar</button>
     </div>
 </div>
 
+<div id="appContent" class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="h5 m-0 text-dark"><i class="bi bi-wallet2"></i> Controle Zap</h3>
+        <button onclick="sincronizarExcel()" id="btnSync" class="btn btn-primary btn-sm"><i class="bi bi-cloud-arrow-up"></i> Salvar no Excel</button>
+    </div>
+
+    <div class="card p-3 mb-4">
+        <label class="form-label small fw-bold text-muted">Atualizar lista via TXT</label>
+        <div class="d-flex gap-2">
+            <input type="file" id="fileInput" class="form-control form-control-sm" accept=".txt">
+            <button onclick="importarTXT()" class="btn btn-dark btn-sm">Importar</button>
+        </div>
+    </div>
+
+    <div id="listaClientes"></div>
+</div>
+
 <script>
-async function processarArquivo() {
+// ==========================================
+// CONFIGURAÇÕES PRINCIPAIS
+// ==========================================
+const SENHA_ACESSO = "123456"; // Mude para sua senha desejada
+const URL_GOOGLE_SHEETS = "COLE_SUA_URL_AQUI"; // URL gerada no Passo 1
+// ==========================================
+
+let db = JSON.parse(localStorage.getItem('financas_zap')) || [];
+
+// SISTEMA DE LOGIN
+function fazerLogin() {
+    if(document.getElementById('senhaMaster').value === SENHA_ACESSO) {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContent').style.display = 'block';
+        renderizar();
+    } else {
+        alert("Senha Incorreta!");
+    }
+}
+
+// IMPORTAR TXT
+function importarTXT() {
     const file = document.getElementById('fileInput').files[0];
-    if (!file) return alert("Selecione o arquivo!");
+    if (!file) return alert("Selecione um arquivo!");
 
-    const texto = await file.text();
-    const linhas = texto.split('\n');
-    const tabela = document.getElementById('tabelaDados');
-    tabela.innerHTML = "";
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const linhas = e.target.result.split('\n');
+        linhas.forEach(linha => {
+            if (!linha.includes('=') && !linha.includes('/')) return;
+            let p = linha.includes('=') ? linha.split('=') : linha.split('/');
+            
+            const hoje = new Date();
+            const planoStr = p[2]?.trim().toLowerCase() || "semanal";
+            let dias = planoStr.includes("quinzena") ? 15 : planoStr.includes("mensal") ? 30 : 7;
 
-    linhas.forEach(linha => {
-        if (linha.trim() === "" || linha.includes("nome dono")) return;
+            const venc = new Date();
+            venc.setDate(hoje.getDate() + dias);
 
-        // Tenta dividir por '=' ou por '/', removendo espaços extras
-        let partes = linha.includes('=') ? linha.split('=') : linha.split('/');
-        
-        if (partes.length >= 2) {
-            const dado = {
-                dono: partes[0]?.trim() || "---",
-                grupo: partes[1]?.trim() || "---",
-                plano: partes[2]?.trim() || "Semanal",
-                valor: partes[3]?.trim() || "0",
-                vencimento: partes[4]?.trim() || "---"
-            };
+            db.push({
+                id: Date.now() + Math.random(),
+                dono: p[0]?.trim(),
+                grupo: p[1]?.trim(),
+                plano: planoStr,
+                valor: p[3]?.trim() || "0",
+                vencimento: venc.getTime(),
+                status: "Pendente",
+                ultimoPagamentoData: ""
+            });
+        });
+        salvar();
+    };
+    reader.readAsText(file);
+}
 
-            // Adiciona na tela
-            const row = `<tr>
-                <td><strong>${dado.dono}</strong></td>
-                <td>${dado.grupo}</td>
-                <td><span class="badge bg-info">${dado.plano}</span></td>
-                <td>R$ ${dado.valor}</td>
-                <td><span class="text-danger">${dado.vencimento}</span></td>
-            </tr>`;
-            tabela.innerHTML += row;
+// ATUALIZAR PAGAMENTO
+function setStatus(id, st) {
+    const idx = db.findIndex(c => c.id === id);
+    const agora = new Date();
+    
+    db[idx].status = st;
+    db[idx].ultimoPagamentoData = agora.toLocaleDateString('pt-BR');
 
-            // Enviar para o Google Sheets (Exemplo de chamada)
-            // enviarParaPlanilha(dado);
+    if(st === "Pago") {
+        let dias = 7;
+        const plano = db[idx].plano;
+        if(plano.includes("quinzena")) dias = 15;
+        if(plano.includes("mensal")) dias = 30;
+
+        let novaData = new Date();
+        novaData.setDate(agora.getDate() + dias);
+        db[idx].vencimento = novaData.getTime();
+    }
+    salvar();
+}
+
+function salvar() {
+    localStorage.setItem('financas_zap', JSON.stringify(db));
+    renderizar();
+}
+
+// RENDERIZAR NA TELA (EM TEMPO REAL)
+function renderizar() {
+    const container = document.getElementById('listaClientes');
+    container.innerHTML = "";
+    const agora = new Date().getTime();
+
+    db.forEach(c => {
+        let statusFinal = c.status;
+        let classeBadge = "badge-metade";
+
+        if (agora > c.vencimento && c.status !== "Pago") {
+            statusFinal = "ATRASADO";
+            classeBadge = "badge-atrasado";
+        } else if (c.status === "Pago") {
+            statusFinal = "PAGO";
+            classeBadge = "badge-pago";
         }
+
+        const dataVenc = new Date(c.vencimento).toLocaleDateString('pt-BR');
+
+        container.innerHTML += `
+            <div class="card p-3 mb-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <strong class="text-dark">${c.dono}</strong><br>
+                        <small class="text-muted">${c.grupo} | ${c.plano}</small><br>
+                        <span class="text-success fw-bold">R$ ${c.valor}</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="${classeBadge} d-inline-block mb-2">${statusFinal}</span><br>
+                        <small class="text-muted" style="font-size: 0.75rem;">Vence: ${dataVenc}</small>
+                    </div>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-end gap-2">
+                    <button onclick="setStatus(${c.id}, 'Metade')" class="btn btn-sm btn-warning fw-bold">50%</button>
+                    <button onclick="setStatus(${c.id}, 'Pago')" class="btn btn-sm btn-success fw-bold">100% Pago</button>
+                </div>
+            </div>`;
     });
 }
 
-function enviarParaPlanilha(objeto) {
-    const urlPlanilha = "SUA_URL_DO_DEPLOY_AQUI"; 
-    fetch(urlPlanilha, {
+// SINCRONIZAR COM GOOGLE SHEETS
+function sincronizarExcel() {
+    const btn = document.getElementById('btnSync');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando...';
+    btn.disabled = true;
+
+    fetch(URL_GOOGLE_SHEETS, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify(objeto)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(db)
+    }).then(() => {
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> Salvo com Sucesso';
+        btn.classList.replace('btn-primary', 'btn-success');
+        setTimeout(() => {
+            btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> Salvar no Excel';
+            btn.classList.replace('btn-success', 'btn-primary');
+            btn.disabled = false;
+        }, 3000);
+    }).catch(err => {
+        alert("Erro ao conectar com a planilha. Verifique a URL.");
+        btn.innerHTML = 'Tentar Novamente';
+        btn.disabled = false;
     });
 }
+
 </script>
 </body>
 </html>
