@@ -3,66 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zap Fin - Gestão Elite</title>
+    <title>Zap Fin - Painel Organizado</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        body { background: #f8f9fa; font-family: 'Inter', sans-serif; color: #333; }
-        .nav-zap { background: #075E54; color: white; padding: 15px; font-weight: bold; }
-        /* Layout de Lista Compacta */
-        .lista-item { 
+        body { background: #f4f6f9; font-family: 'Segoe UI', sans-serif; padding-top: 60px; }
+        .header-zap { background: #075E54; color: white; position: fixed; top: 0; width: 100%; z-index: 1000; padding: 10px 15px; border-bottom: 2px solid #128C7E; }
+        
+        /* Lista Compacta e Profissional */
+        .item-cliente { 
             background: white; 
-            border-bottom: 1px solid #eee; 
-            padding: 12px 15px; 
+            margin: 0; 
+            padding: 10px 15px; 
+            border-bottom: 1px solid #e9ecef; 
             display: flex; 
+            align-items: center; 
             justify-content: space-between; 
-            align-items: center;
         }
-        .lista-item:last-child { border-bottom: none; }
-        .info-principal h6 { margin: 0; font-size: 15px; font-weight: 600; }
-        .info-principal p { margin: 0; font-size: 12px; color: #666; }
-        .valor-tag { font-weight: bold; color: #2e7d32; font-size: 14px; }
+        .item-cliente:active { background: #f8f9fa; }
         
-        .status-btn { 
-            border-radius: 6px; 
-            padding: 5px 12px; 
+        .dados-venda { flex: 1; min-width: 0; } /* min-width garante que o truncamento funcione */
+        .nome-principal { font-weight: bold; font-size: 14px; margin-bottom: 2px; display: block; color: #2c3e50; }
+        
+        /* Limita o nome do grupo para não quebrar o layout */
+        .sub-info { 
             font-size: 11px; 
-            font-weight: bold; 
-            border: none; 
-            text-transform: uppercase;
+            color: #6c757d; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            display: block;
+            max-width: 180px; 
         }
-        .btn-pendente { background: #fff3e0; color: #ef6c00; }
-        .btn-pago { background: #e8f5e9; color: #2e7d32; }
-        
-        .resumo-topo { background: white; padding: 15px; border-bottom: 2px solid #075E54; margin-bottom: 10px; }
+
+        .valor-txt { font-weight: bold; color: #198754; font-size: 13px; }
+
+        /* Botões de Status Fixos */
+        .btn-status { 
+            width: 90px; 
+            font-size: 10px; 
+            font-weight: 800; 
+            border-radius: 4px; 
+            padding: 4px 0; 
+            text-align: center;
+            border: none;
+            transition: 0.2s;
+        }
+        .status-pago { background: #d1e7dd; color: #0f5132; }
+        .status-pendente { background: #fff3cd; color: #664d03; }
+
+        .resumo-card { background: white; padding: 15px; margin-bottom: 1px; border-bottom: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
-<div class="nav-zap d-flex justify-content-between align-items-center shadow-sm">
-    <span><i class="bi bi-wallet2"></i> CONTROLE ZAP</span>
-    <button class="btn btn-light btn-sm fw-bold" onclick="novoCliente()">+ NOVO</button>
+<div class="header-zap d-flex justify-content-between align-items-center shadow-sm">
+    <span class="fs-6 fw-bold">CONTROLE ZAP</span>
+    <button class="btn btn-light btn-sm" onclick="novoCliente()">+ NOVO</button>
 </div>
 
-<div class="resumo-topo d-flex justify-content-around text-center shadow-sm">
-    <div><small class="text-muted d-block">TOTAL PAGO</small><b id="resP" class="text-success">R$ 0</b></div>
-    <div><small class="text-muted d-block">PENDENTE</small><b id="resA" class="text-warning">R$ 0</b></div>
+<div class="resumo-card d-flex justify-content-around text-center shadow-sm">
+    <div><small class="text-muted d-block">RECEBIDO</small><b id="totalP" class="text-success">R$ 0</b></div>
+    <div><small class="text-muted d-block">A RECEBER</small><b id="totalA" class="text-danger">R$ 0</b></div>
 </div>
 
-<div class="container-fluid p-0" id="listaCorpo">
-    </div>
+<div id="listaPrincipal">
+    <div class="text-center p-5 text-muted">Carregando lista...</div>
+</div>
 
 <script>
     const firebaseConfig = { databaseURL: "https://zapfin-816b8-default-rtdb.firebaseio.com/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // ESCUTAR MUDANÇAS (O segredo da sincronização está aqui)
     db.ref('clientes').on('value', (snapshot) => {
-        const container = document.getElementById('listaCorpo');
+        const container = document.getElementById('listaPrincipal');
         let html = "";
-        let somaP = 0, somaA = 0;
+        let somaPago = 0, somaAberto = 0;
 
         snapshot.forEach((item) => {
             const c = item.val();
@@ -70,47 +90,57 @@
             const v = parseFloat(c.valor || 0);
             const pago = c.status === "Pago";
 
-            if(pago) somaP += v; else somaA += v;
+            if(pago) somaPago += v; else somaAberto += v;
 
             html += `
-                <div class="lista-item">
-                    <div class="info-principal" onclick="editar('${id}', '${c.nome_dono}', '${c.valor}')">
-                        <h6>${c.nome_dono} <span class="valor-tag">R$ ${v}</span></h6>
-                        <p>${c.nome_grupo} • ${c.vencimento || 'S/D'} • ${c.plano}</p>
+                <div class="item-cliente">
+                    <div class="dados-venda" onclick="editarValor('${id}', '${c.nome_dono}', '${c.valor}')">
+                        <span class="nome-principal">${c.nome_dono} <span class="valor-txt">R$ ${v}</span></span>
+                        <span class="sub-info">
+                            ${c.nome_grupo} | ${c.vencimento} | ${c.plano}
+                        </span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <button class="status-btn ${pago ? 'btn-pago' : 'btn-pendente'}" 
-                                onclick="toggleStatus('${id}', '${c.status}')">
-                            ${pago ? 'PAGO' : 'PENDENTE'}
+                        <button class="btn-status ${pago ? 'status-pago' : 'status-pendente'}" 
+                                onclick="alternarStatus('${id}', '${c.status}')">
+                            ${pago ? '100% PAGO' : 'PENDENTE'}
                         </button>
-                        <i class="bi bi-trash text-muted" onclick="excluir('${id}')" style="cursor:pointer"></i>
+                        <i class="bi bi-trash text-muted" onclick="excluir('${id}')"></i>
                     </div>
                 </div>`;
         });
 
         container.innerHTML = html;
-        document.getElementById('resP').innerText = "R$ " + somaP;
-        document.getElementById('resA').innerText = "R$ " + somaA;
+        document.getElementById('totalP').innerText = "R$ " + somaPago;
+        document.getElementById('totalA').innerText = "R$ " + somaAberto;
     });
 
-    function toggleStatus(id, atual) {
-        const novo = atual === "Pago" ? "Pendente" : "Pago";
-        db.ref('clientes/' + id).update({ status: novo });
+    // Funções de Controle (Usando Update direto para não desmarcar)
+    function alternarStatus(id, statusAtual) {
+        const novoStatus = statusAtual === "Pago" ? "Pendente" : "Pago";
+        db.ref('clientes/' + id).update({ status: novoStatus });
     }
 
-    function editar(id, nome, valor) {
-        const nV = prompt(`Novo valor para ${nome}:`, valor);
-        if(nV) db.ref('clientes/' + id).update({ valor: nV });
+    function editarValor(id, nome, valor) {
+        const novo = prompt(`Novo valor para ${nome}:`, valor);
+        if (novo !== null) db.ref('clientes/' + id).update({ valor: novo });
     }
 
     function excluir(id) {
-        if(confirm("Excluir cliente?")) db.ref('clientes/' + id).remove();
+        if(confirm("Deseja apagar este registro?")) db.ref('clientes/' + id).remove();
     }
 
     function novoCliente() {
         const n = prompt("Nome do Dono:");
+        const g = prompt("Grupo:");
         const v = prompt("Valor (R$):");
-        if(n && v) db.ref('clientes').push({ nome_dono: n, valor: v, status: "Pendente", nome_grupo: "Geral" });
+        const ven = prompt("Vencimento:");
+        if(n && v) {
+            db.ref('clientes').push({
+                nome_dono: n, nome_grupo: g || "Geral", valor: v,
+                vencimento: ven || "S/D", plano: "semanal", status: "Pendente"
+            });
+        }
     }
 </script>
 </body>
